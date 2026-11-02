@@ -1,1 +1,95 @@
+name: Build Belgindo Inventory APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create project structure
+        run: |
+          mkdir -p android-webview/app/src/main/java/id/co/belgindoraya/inventory
+          mkdir -p android-webview/app/src/main/res/values
+          mkdir -p android-webview/app/src/main/assets/css
+          mkdir -p android-webview/app/src/main/assets/js/pages
+          mkdir -p android-webview/app/src/main/assets/js/store
+          mkdir -p server
+          mkdir -p web/css web/js/pages web/js/store
+
+          # Restore server
+          for f in server__*.py; do
+            [ -f "$f" ] && mv "\( f" "server/ \){f#server__}"
+          done
+
+          # Restore web
+          [ -f web__index.html ] && mv web__index.html web/index.html
+          [ -f web__favicon.svg ] && mv web__favicon.svg web/favicon.svg
+          [ -f web__css__app.css ] && mv web__css__app.css web/css/app.css
+          [ -f web__icon.png ] && mv web__icon.png web/icon.png
+
+          for f in web__js__*.js; do
+            [ -f "$f" ] || continue
+            name=${f#web__js__}
+            if [[ $name == pages__* ]]; then
+              mv "\( f" "web/js/pages/ \){name#pages__}"
+            elif [[ $name == store__* ]]; then
+              mv "\( f" "web/js/store/ \){name#store__}"
+            else
+              mv "$f" "web/js/$name"
+            fi
+          done
+
+          # Restore android files
+          [ -f android__AndroidManifest.xml ] && mv android__AndroidManifest.xml android-webview/app/src/main/AndroidManifest.xml
+          [ -f android__MainActivity.java ] && mv android__MainActivity.java android-webview/app/src/main/java/id/co/belgindoraya/inventory/MainActivity.java
+          [ -f android__app_build.gradle ] && mv android__app_build.gradle android-webview/app/build.gradle
+          [ -f android__build.gradle ] && mv android__build.gradle android-webview/build.gradle
+          [ -f android__settings.gradle ] && mv android__settings.gradle android-webview/settings.gradle
+          [ -f android__gradle.properties ] && mv android__gradle.properties android-webview/gradle.properties
+          [ -f android__strings.xml ] && mv android__strings.xml android-webview/app/src/main/res/values/strings.xml
+
+          # Copy web assets into APK
+          cp -r web/* android-webview/app/src/main/assets/ 2>/dev/null || true
+
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android-webview/local.properties
+
+      - name: Generate Gradle Wrapper
+        working-directory: android-webview
+        run: |
+          gradle wrapper --gradle-version 8.2 || true
+          chmod +x gradlew || true
+
+      - name: Build debug APK
+        working-directory: android-webview
+        run: |
+          if [ -f gradlew ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            echo "Gradle wrapper not found, trying direct gradle"
+            gradle assembleDebug --stacktrace || true
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BelgindoInventory-debug
+          path: |
+            android-webview/app/build/outputs/apk/debug/*.apk
+            android-webview/app/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
