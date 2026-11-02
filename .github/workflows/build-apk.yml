@@ -1,7 +1,225 @@
-name: test
-on: workflow_dispatch
+name: Build Belgindo Inventory APK
+
+on:
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - run: echo hello
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/id/co/belgindoraya/inventory
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/assets/css
+          mkdir -p app/src/main/assets/js/pages
+          mkdir -p app/src/main/assets/js/store
+
+          # AndroidManifest
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="Belgindo Inventory"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:usesCleartextTraffic="true"
+                  android:hardwareAccelerated="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # MainActivity
+          cat > app/src/main/java/id/co/belgindoraya/inventory/MainActivity.java << 'EOF'
+          package id.co.belgindoraya.inventory;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.webkit.WebChromeClient;
+          import android.view.WindowManager;
+          public class MainActivity extends Activity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  s.setUseWideViewPort(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setSupportZoom(false);
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient());
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) webView.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          EOF
+
+          # strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Belgindo Inventory</string>
+          </resources>
+          EOF
+
+          # settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "BelgindoInventory"
+          include ':app'
+          EOF
+
+          # Root build.gradle (kosong, modern style)
+          cat > build.gradle << 'EOF'
+          // Top-level build file
+          EOF
+
+          # app/build.gradle
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '8.1.4' apply false
+          }
+          EOF
+
+          # Actually apply in app
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'id.co.belgindoraya.inventory'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "id.co.belgindoraya.inventory"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+
+          # gradle.properties
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Copy web assets
+        run: |
+          if [ -f web__index.html ]; then
+            cp web__index.html app/src/main/assets/index.html
+          fi
+          if [ -f web__css__app.css ]; then
+            cp web__css__app.css app/src/main/assets/css/app.css
+          fi
+          if [ -f web__favicon.svg ]; then
+            cp web__favicon.svg app/src/main/assets/favicon.svg
+          fi
+
+          for f in web__js__*.js; do
+            if [ -f "$f" ]; then
+              fname=$(basename "$f")
+              clean=${fname#web__js__}
+              if echo "$clean" | grep -q "^pages__"; then
+                cp "\( f" "app/src/main/assets/js/pages/ \){clean#pages__}"
+              elif echo "$clean" | grep -q "^store__"; then
+                cp "\( f" "app/src/main/assets/js/store/ \){clean#store__}"
+              else
+                cp "$f" "app/src/main/assets/js/$clean"
+              fi
+            fi
+          done
+
+          if [ -f icon.png ]; then
+            cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
+          fi
+
+          echo "Assets:"
+          find app/src/main/assets -type f | head -20
+
+      - name: Setup Gradle Wrapper (Gradle 8.4)
+        run: |
+          # Download specific Gradle distribution to avoid system Gradle 9.x
+          wget -q https://services.gradle.org/distributions/gradle-8.4-bin.zip
+          unzip -q gradle-8.4-bin.zip
+          ./gradle-8.4/bin/gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+          ./gradlew --version
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BelgindoInventory-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
