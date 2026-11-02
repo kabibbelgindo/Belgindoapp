@@ -21,75 +21,178 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Create project structure
+      - name: Create complete Android project
         run: |
-          mkdir -p android-webview/app/src/main/java/id/co/belgindoraya/inventory
-          mkdir -p android-webview/app/src/main/res/values
-          mkdir -p android-webview/app/src/main/assets/css
-          mkdir -p android-webview/app/src/main/assets/js/pages
-          mkdir -p android-webview/app/src/main/assets/js/store
-          mkdir -p server
-          mkdir -p web/css web/js/pages web/js/store
+          # Buat struktur folder
+          mkdir -p app/src/main/java/id/co/belgindoraya/inventory
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/assets
 
-          # Restore server
-          for f in server__*.py; do
-            [ -f "$f" ] && mv "\( f" "server/ \){f#server__}"
-          done
+          # AndroidManifest
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="Belgindo Inventory"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
+                  android:usesCleartextTraffic="true"
+                  android:hardwareAccelerated="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
 
-          # Restore web
-          [ -f web__index.html ] && mv web__index.html web/index.html
-          [ -f web__favicon.svg ] && mv web__favicon.svg web/favicon.svg
-          [ -f web__css__app.css ] && mv web__css__app.css web/css/app.css
-          [ -f web__icon.png ] && mv web__icon.png web/icon.png
+          # MainActivity
+          cat > app/src/main/java/id/co/belgindoraya/inventory/MainActivity.java << 'EOF'
+          package id.co.belgindoraya.inventory;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.webkit.WebChromeClient;
+          import android.view.WindowManager;
+          public class MainActivity extends Activity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  s.setUseWideViewPort(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setSupportZoom(false);
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient());
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) webView.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          EOF
 
-          for f in web__js__*.js; do
-            [ -f "$f" ] || continue
-            name=${f#web__js__}
-            if [[ $name == pages__* ]]; then
-              mv "\( f" "web/js/pages/ \){name#pages__}"
-            elif [[ $name == store__* ]]; then
-              mv "\( f" "web/js/store/ \){name#store__}"
-            else
-              mv "$f" "web/js/$name"
-            fi
-          done
+          # strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Belgindo Inventory</string>
+          </resources>
+          EOF
 
-          # Restore android files
-          [ -f android__AndroidManifest.xml ] && mv android__AndroidManifest.xml android-webview/app/src/main/AndroidManifest.xml
-          [ -f android__MainActivity.java ] && mv android__MainActivity.java android-webview/app/src/main/java/id/co/belgindoraya/inventory/MainActivity.java
-          [ -f android__app_build.gradle ] && mv android__app_build.gradle android-webview/app/build.gradle
-          [ -f android__build.gradle ] && mv android__build.gradle android-webview/build.gradle
-          [ -f android__settings.gradle ] && mv android__settings.gradle android-webview/settings.gradle
-          [ -f android__gradle.properties ] && mv android__gradle.properties android-webview/gradle.properties
-          [ -f android__strings.xml ] && mv android__strings.xml android-webview/app/src/main/res/values/strings.xml
+          # build.gradle (project)
+          cat > build.gradle << 'EOF'
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          EOF
 
-          # Copy web assets into APK
-          cp -r web/* android-webview/app/src/main/assets/ 2>/dev/null || true
+          # settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          rootProject.name = "BelgindoInventory"
+          include ':app'
+          EOF
 
-      - name: Create local.properties
-        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android-webview/local.properties
+          # app/build.gradle
+          cat > app/build.gradle << 'EOF'
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'id.co.belgindoraya.inventory'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "id.co.belgindoraya.inventory"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+
+          # gradle.properties
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx2048m
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          # Copy web assets (dari file flat)
+          if [ -f web__index.html ]; then
+            cp web__index.html app/src/main/assets/index.html
+            [ -f web__css__app.css ] && mkdir -p app/src/main/assets/css && cp web__css__app.css app/src/main/assets/css/app.css
+            [ -f web__favicon.svg ] && cp web__favicon.svg app/src/main/assets/favicon.svg
+            mkdir -p app/src/main/assets/js/pages app/src/main/assets/js/store
+            for f in web__js__*.js; do
+              [ -f "$f" ] || continue
+              name=${f#web__js__}
+              if [[ $name == pages__* ]]; then
+                cp "\( f" "app/src/main/assets/js/pages/ \){name#pages__}"
+              elif [[ $name == store__* ]]; then
+                cp "\( f" "app/src/main/assets/js/store/ \){name#store__}"
+              else
+                cp "$f" "app/src/main/assets/js/$name"
+              fi
+            done
+          fi
+
+          # Icon sederhana
+          if [ -f icon.png ]; then
+            cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
+          fi
+
+          # local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
       - name: Generate Gradle Wrapper
-        working-directory: android-webview
         run: |
-          gradle wrapper --gradle-version 8.2 || true
-          chmod +x gradlew || true
+          gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
 
-      - name: Build debug APK
-        working-directory: android-webview
-        run: |
-          if [ -f gradlew ]; then
-            ./gradlew assembleDebug --stacktrace
-          else
-            echo "Gradle wrapper not found, trying direct gradle"
-            gradle assembleDebug --stacktrace || true
-          fi
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BelgindoInventory-debug
-          path: |
-            android-webview/app/build/outputs/apk/debug/*.apk
-            android-webview/app/build/outputs/apk/**/*.apk
-          if-no-files-found: warn
+          name: BelgindoInventory-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
