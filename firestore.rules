@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// Aturan keamanan PT. Belgindo Raya Inventory — edisi Firebase.
+// Paket Spark TANPA Firebase Auth sesuai permintaan: seluruh pengunjung situs
+// dapat membaca dan menulis data melalui aplikasi. Karena tidak ada autentikasi,
+// siapa pun yang tahu URL proyek juga dapat mengakses database lewat API.
+// Jangan simpan data rahasia di proyek ini; aktifkan Firebase Auth bila nanti
+// dibutuhkan kontrol akses sungguhan.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{collection}/{document=**} {
+      allow read, write: if collection in [
+        "users",
+        "products",
+        "product_active_prices",
+        "master_spec_values",
+        "master_price_values",
+        "sellers",
+        "seller_contacts",
+        "storage_locations",
+        "seller_rits",
+        "transactions",
+        "location_transfers",
+        "tally_headers",
+        "tally_items",
+        "payment_recap_headers",
+        "payment_recap_items",
+        "stock_opname",
+        "stock_opname_items",
+        "stock_period_closures",
+        "stock_period_closure_items",
+        "activity_log",
+        "sync_outbox",
+        "_meta",
+      ];
+    }
+  }
+}

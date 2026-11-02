@@ -1,0 +1,34 @@
+BELGINDO INVENTORY — VERSI FLAT (tanpa subfolder)
+================================================
+
+Semua file sudah digabung dalam 1 folder datar agar mudah di-upload dari ponsel ke GitHub.
+
+CARA UPLOAD DARI PONSEL (X-plore / GitHub):
+1. Buat repository baru di GitHub (bisa lewat browser HP).
+2. Upload SEMUA file yang ada di folder ini (pilih banyak file sekaligus).
+3. Nanti di komputer / Android Studio Anda tinggal susun ulang sesuai panduan di bawah.
+
+MAPPING NAMA FILE → LOKASI ASLI
+--------------------------------
+app.py                          → app.py
+server__*.py                    → server/*.py
+web__index.html                 → web/index.html
+web__favicon.svg                → web/favicon.svg
+web__css__app.css               → web/css/app.css
+web__js__*.js                   → web/js/*.js
+web__js__pages__*.js            → web/js/pages/*.js
+web__js__store__*.js            → web/js/store/*.js
+android__AndroidManifest.xml    → android-webview/app/src/main/AndroidManifest.xml
+android__MainActivity.java      → android-webview/app/src/main/java/.../MainActivity.java
+android__app_build.gradle       → android-webview/app/build.gradle
+android__build.gradle           → android-webview/build.gradle
+android__settings.gradle        → android-webview/settings.gradle
+android__gradle.properties      → android-webview/gradle.properties
+android__strings.xml            → android-webview/app/src/main/res/values/strings.xml
+github__build-apk.yml           → .github/workflows/build-apk.yml
+icon.png / icon-192.png / icon-48.png → ikon APK
+PANDUAN_BUILD_APK.md            → panduan build lengkap
+README_APK.md                   → ringkasan
+
+Setelah semua file ter-upload di GitHub, di komputer jalankan perintah restore
+(atau gunakan Android Studio + salin manual). Lihat file 01_CARA_RESTORE.txt

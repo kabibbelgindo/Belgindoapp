@@ -1,0 +1,42 @@
+CARA MENGEMBALIKAN STRUKTUR FOLDER (di komputer)
+================================================
+
+Setelah clone repository dari GitHub, jalankan di terminal:
+
+mkdir -p server web/css web/js/pages web/js/store
+mkdir -p android-webview/app/src/main/java/id/co/belgindoraya/inventory
+mkdir -p android-webview/app/src/main/res/values
+mkdir -p android-webview/app/src/main/assets
+mkdir -p .github/workflows
+
+# Server
+mv server__*.py server/
+cd server && for f in server__*; do mv "$f" "${f#server__}"; done; cd ..
+
+# Web
+mv web__index.html web/index.html
+mv web__favicon.svg web/favicon.svg
+mv web__css__app.css web/css/app.css
+mv web__js__*.js web/js/ 2>/dev/null
+cd web/js && for f in web__js__*; do mv "$f" "${f#web__js__}"; done; cd ../..
+mv web__js__pages__*.js web/js/pages/
+cd web/js/pages && for f in web__js__pages__*; do mv "$f" "${f#web__js__pages__}"; done; cd ../../..
+mv web__js__store__*.js web/js/store/
+cd web/js/store && for f in web__js__store__*; do mv "$f" "${f#web__js__store__}"; done; cd ../../..
+
+# Android
+mv android__AndroidManifest.xml android-webview/app/src/main/AndroidManifest.xml
+mv android__MainActivity.java android-webview/app/src/main/java/id/co/belgindoraya/inventory/MainActivity.java
+mv android__app_build.gradle android-webview/app/build.gradle
+mv android__build.gradle android-webview/build.gradle
+mv android__settings.gradle android-webview/settings.gradle
+mv android__gradle.properties android-webview/gradle.properties
+mv android__strings.xml android-webview/app/src/main/res/values/strings.xml
+
+# GitHub workflow
+mv github__build-apk.yml .github/workflows/build-apk.yml
+
+# Copy web assets ke Android assets
+cp -r web/* android-webview/app/src/main/assets/
+
+Selesai. Lalu ikuti PANDUAN_BUILD_APK.md untuk build APK.
