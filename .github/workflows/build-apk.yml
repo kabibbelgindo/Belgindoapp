@@ -20,14 +20,17 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
       - name: Create complete Android project
         run: |
-          # Buat struktur folder
           mkdir -p app/src/main/java/id/co/belgindoraya/inventory
           mkdir -p app/src/main/res/values
           mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/assets
+          mkdir -p app/src/main/assets/css
+          mkdir -p app/src/main/assets/js/pages
+          mkdir -p app/src/main/assets/js/store
 
           # AndroidManifest
           cat > app/src/main/AndroidManifest.xml << 'EOF'
@@ -103,7 +106,7 @@ jobs:
           </resources>
           EOF
 
-          # build.gradle (project)
+          # Project build.gradle
           cat > build.gradle << 'EOF'
           buildscript {
               repositories { google(); mavenCentral() }
@@ -137,9 +140,7 @@ jobs:
                   versionName "1.0.0"
               }
               buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
+                  release { minifyEnabled false }
               }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
@@ -155,12 +156,11 @@ jobs:
           android.nonTransitiveRClass=true
           EOF
 
-          # Copy web assets (dari file flat)
+          # Copy web assets from flat files
           if [ -f web__index.html ]; then
             cp web__index.html app/src/main/assets/index.html
-            [ -f web__css__app.css ] && mkdir -p app/src/main/assets/css && cp web__css__app.css app/src/main/assets/css/app.css
+            [ -f web__css__app.css ] && cp web__css__app.css app/src/main/assets/css/app.css
             [ -f web__favicon.svg ] && cp web__favicon.svg app/src/main/assets/favicon.svg
-            mkdir -p app/src/main/assets/js/pages app/src/main/assets/js/store
             for f in web__js__*.js; do
               [ -f "$f" ] || continue
               name=${f#web__js__}
@@ -174,12 +174,11 @@ jobs:
             done
           fi
 
-          # Icon sederhana
+          # Icon
           if [ -f icon.png ]; then
             cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
           fi
 
-          # local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
 
       - name: Generate Gradle Wrapper
