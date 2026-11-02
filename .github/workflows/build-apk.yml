@@ -23,7 +23,7 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
-      - name: Create complete Android project
+      - name: Create Android project structure
         run: |
           mkdir -p app/src/main/java/id/co/belgindoraya/inventory
           mkdir -p app/src/main/res/values
@@ -32,7 +32,7 @@ jobs:
           mkdir -p app/src/main/assets/js/pages
           mkdir -p app/src/main/assets/js/store
 
-          # AndroidManifest
+          # ===== AndroidManifest =====
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -59,7 +59,7 @@ jobs:
           </manifest>
           EOF
 
-          # MainActivity
+          # ===== MainActivity.java =====
           cat > app/src/main/java/id/co/belgindoraya/inventory/MainActivity.java << 'EOF'
           package id.co.belgindoraya.inventory;
           import android.app.Activity;
@@ -98,7 +98,7 @@ jobs:
           }
           EOF
 
-          # strings.xml
+          # ===== strings.xml =====
           cat > app/src/main/res/values/strings.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -106,7 +106,7 @@ jobs:
           </resources>
           EOF
 
-          # Project build.gradle
+          # ===== build.gradle (root) =====
           cat > build.gradle << 'EOF'
           buildscript {
               repositories { google(); mavenCentral() }
@@ -117,7 +117,7 @@ jobs:
           }
           EOF
 
-          # settings.gradle
+          # ===== settings.gradle =====
           cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories { google(); mavenCentral(); gradlePluginPortal() }
@@ -126,7 +126,7 @@ jobs:
           include ':app'
           EOF
 
-          # app/build.gradle
+          # ===== app/build.gradle =====
           cat > app/build.gradle << 'EOF'
           plugins { id 'com.android.application' }
           android {
@@ -149,37 +149,60 @@ jobs:
           }
           EOF
 
-          # gradle.properties
+          # ===== gradle.properties =====
           cat > gradle.properties << 'EOF'
           org.gradle.jvmargs=-Xmx2048m
           android.useAndroidX=true
           android.nonTransitiveRClass=true
           EOF
 
-          # Copy web assets from flat files
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Copy web assets
+        run: |
+          # Index & CSS
           if [ -f web__index.html ]; then
             cp web__index.html app/src/main/assets/index.html
-            [ -f web__css__app.css ] && cp web__css__app.css app/src/main/assets/css/app.css
-            [ -f web__favicon.svg ] && cp web__favicon.svg app/src/main/assets/favicon.svg
-            for f in web__js__*.js; do
-              [ -f "$f" ] || continue
-              name=${f#web__js__}
-              if [[ $name == pages__* ]]; then
-                cp "\( f" "app/src/main/assets/js/pages/ \){name#pages__}"
-              elif [[ $name == store__* ]]; then
-                cp "\( f" "app/src/main/assets/js/store/ \){name#store__}"
-              else
-                cp "$f" "app/src/main/assets/js/$name"
-              fi
-            done
+            echo "Copied index.html"
           fi
+          if [ -f web__css__app.css ]; then
+            cp web__css__app.css app/src/main/assets/css/app.css
+            echo "Copied app.css"
+          fi
+          if [ -f web__favicon.svg ]; then
+            cp web__favicon.svg app/src/main/assets/favicon.svg
+          fi
+
+          # JS files (safe way)
+          for f in web__js__*.js; do
+            if [ -f "$f" ]; then
+              fname=$(basename "$f")
+              # Remove prefix web__js__
+              clean=${fname#web__js__}
+              if echo "$clean" | grep -q "^pages__"; then
+                target="app/src/main/assets/js/pages/${clean#pages__}"
+                cp "$f" "$target"
+                echo "Copied page: $target"
+              elif echo "$clean" | grep -q "^store__"; then
+                target="app/src/main/assets/js/store/${clean#store__}"
+                cp "$f" "$target"
+                echo "Copied store: $target"
+              else
+                target="app/src/main/assets/js/$clean"
+                cp "$f" "$target"
+                echo "Copied js: $target"
+              fi
+            fi
+          done
 
           # Icon
           if [ -f icon.png ]; then
             cp icon.png app/src/main/res/mipmap-hdpi/ic_launcher.png
+            echo "Copied icon"
           fi
 
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          echo "===== Assets ready ====="
+          find app/src/main/assets -type f | head -30
 
       - name: Generate Gradle Wrapper
         run: |
