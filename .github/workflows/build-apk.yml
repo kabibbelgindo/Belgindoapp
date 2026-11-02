@@ -19,7 +19,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          packages: platform-tools platforms;android-34 build-tools;34.0.0
 
-      - name: Test SDK
-        run: echo "SDK dan JDK berhasil disiapkan"
+      - name: Test
+        run: echo "Berhasil"
